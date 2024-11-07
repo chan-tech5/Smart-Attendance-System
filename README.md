@@ -1,14 +1,20 @@
-📸 Smart Attendance System using Face Recognition
-Effortlessly mark attendance using real-time face recognition! This Smart Attendance System identifies individuals, prevents proxy attendance, and automates record-keeping in a secure, scalable way. Perfect for schools, universities, and workplaces.
+# Smart Attendance System using Face Recognition
 
-🌟 Key Features
-Automated Attendance: Recognizes and marks attendance instantly.
-Proxy Prevention: Only registered individuals are recognized.
-Real-Time Alerts: Optional notifications for absenteeism or late arrivals.
-Scalable: Handles large groups and multi-location setups.
-Contactless & Secure: Safe and anti-spoofing enabled.
-🛠️ Technology Stack
-Languages: Python
-Libraries: OpenCV, Dlib, Face Recognition
-Database: SQLite or MySQL
-Model: FisherFace Recognizer, CNN, or FaceNet
+## Overview
+The **Smart Attendance System** is a face recognition-based attendance management solution that automates the attendance process for institutions and workplaces. By leveraging real-time facial recognition, it can accurately identify individuals and mark attendance without manual intervention. The system prevents proxy attendance, sends alerts for absenteeism, and is scalable across large groups or multiple locations.
+
+## Features
+- **Automated Attendance Marking:** Uses real-time face recognition to mark attendance accurately.
+- **Proxy Prevention:** Only pre-registered individuals are recognized, reducing fraudulent attendance.
+- **Real-Time Alerts:** Notifies administrators or parents about absenteeism or late arrivals.
+- **Scalability:** Supports large populations and can be expanded to multiple locations.
+- **Anti-Spoofing Security:** Prevents fraudulent facial spoofing attempts, ensuring data integrity.
+- **Hygiene-Friendly:** Contactless system improves safety in health-sensitive environments.
+
+## Technology Stack
+- **Programming Language:** Python
+- **Libraries:** OpenCV, Dlib, Face Recognition Library
+- **Machine Learning Model:** FisherFace Recognizer, CNN, or FaceNet
+- **Database:** SQLite or MySQL for attendance records
+- **Cloud Services:** Optional integration with AWS or Google Cloud for remote access and data storage
+
