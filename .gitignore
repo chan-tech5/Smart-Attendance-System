@@ -1,0 +1,28 @@
+# Virtual Environments
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database & Generated Logs
+history.db
+*.xlsx
+attendance*.xlsx
+*.csv
+
+# AI Models & Subject Data
+datasets/*
+!datasets/.gitkeep
+names.pkl
+*.yml
+trained_model.yml
+fisher_model.yml
+personnel_meta.json
+
+# OS files
+.DS_Store
+Thumbs.db

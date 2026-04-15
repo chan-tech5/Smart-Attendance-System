@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Attendance System — AI Face Recognition</title>
+  <meta name="description" content="Enterprise-grade real-time face recognition attendance system powered by CNN and FisherFace technology." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          colors: {
+            brand:   { DEFAULT: '#6366f1', dark: '#4f46e5', light: '#a5b4fc' },
+            surface: { DEFAULT: '#0f172a', card: '#1e293b', border: '#334155' },
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* ── Theme Variables ── */
+    :root {
+      --bg:       #020617; --bg2: #0f172a; --card: #1e293b;
+      --border:   #334155; --text: #f1f5f9; --text2: #94a3b8;
+      --text3:    #64748b; --sidebar: #020617; --header: rgba(2,6,23,.8);
+    }
+    .light-mode {
+      --bg:       #f1f5f9; --bg2: #ffffff; --card: #ffffff;
+      --border:   #cbd5e1; --text: #0f172a; --text2: #475569;
+      --text3:    #94a3b8; --sidebar: #1e293b; --header: rgba(255,255,255,.9);
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); transition:background .3s,color .3s; }
+
+    /* ── Glass panels ── */
+    .glass { background:rgba(30,41,59,0.7); backdrop-filter:blur(12px); border:1px solid rgba(99,102,241,0.1); }
+    .light-mode .glass { background:#ffffff; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+    .glow  { box-shadow:0 0 40px -10px rgba(99,102,241,0.35); }
+    .light-mode .glow { box-shadow:0 4px 20px -4px rgba(99,102,241,0.15); }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:5px} ::-webkit-scrollbar-track{background:var(--bg)} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+
+    /* ── Badges ── */
+    .badge-present{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.25)}
+    .badge-absent {background:rgba(239,68,68,.12); color:#ef4444;border:1px solid rgba(239,68,68,.25)}
+    .light-mode .badge-present{background:rgba(16,185,129,.1);color:#059669;border-color:rgba(16,185,129,.3)}
+    .light-mode .badge-absent {background:rgba(239,68,68,.1); color:#dc2626;border-color:rgba(239,68,68,.3)}
+
+    /* ── Buttons ── */
+    .btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+    .btn-primary:hover{background:linear-gradient(135deg,#4f46e5,#7c3aed);transform:translateY(-1px);box-shadow:0 8px 25px -5px rgba(99,102,241,.4)}
+    .tab-panel{animation:slideUp .3s ease forwards}
+    @keyframes slideUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── Sidebar (stays dark in both themes — dark sidebar is standard) ── */
+    .sidebar-btn{color:#94a3b8}
+    .sidebar-btn:hover{background:rgba(99,102,241,.08);color:#e2e8f0}
+    .sidebar-btn.active{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.2)}
+
+    /* ── Modal ── */
+    #enroll-modal{display:none;position:fixed;inset:0;background:rgba(2,6,23,.85);backdrop-filter:blur(6px);z-index:1000;align-items:center;justify-content:center}
+    #enroll-modal.show{display:flex}
+    .light-mode #enroll-modal{background:rgba(0,0,0,.5)}
+    #prog-bar{transition:width .3s ease}
+
+    /* ── Form Inputs ── */
+    .form-input{background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:.75rem 1rem;border-radius:.75rem;width:100%;font-size:.875rem;font-family:inherit;outline:none;transition:border-color .2s,background .3s,color .3s}
+    .form-input:focus{border-color:#6366f1}
+    .form-label{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:.4rem}
+
+    /* ── Date picker icon ── */
+    input[type="date"]::-webkit-calendar-picker-indicator{
+      filter: invert(1) brightness(1.5); cursor:pointer; opacity:.8; padding:2px;
+    }
+    .light-mode input[type="date"]::-webkit-calendar-picker-indicator{
+      filter: none; opacity:.7;
+    }
+
+    /* ── Theme toggle button ── */
+    .theme-toggle { display:flex; align-items:center; gap:6px; font-size:.8rem; font-weight:600; padding:8px 14px; border-radius:12px; border:1px solid; cursor:pointer; transition:all .2s; }
+    .theme-toggle.dark-btn  { background:#1e293b; border-color:#334155; color:#cbd5e1; }
+    .theme-toggle.dark-btn:hover  { background:#334155; }
+    .theme-toggle.light-btn { background:#ffffff; border-color:#cbd5e1; color:#475569; }
+    .theme-toggle.light-btn:hover { background:#e2e8f0; }
+
+    /* ════════════════════════════════════════════════════════════════
+       LIGHT MODE — COMPREHENSIVE OVERRIDES
+       Covers every hardcoded dark Tailwind class in the HTML
+       ════════════════════════════════════════════════════════════════ */
+
+    /* ── HOME PAGE ── */
+    .light-mode #home-view { background:#f8fafc; color:#0f172a; }
+    /* Navbar */
+    .light-mode #home-view nav { background:rgba(255,255,255,.92) !important; border-color:#e2e8f0 !important; }
+    .light-mode #home-view nav span { color:#0f172a; }
+    .light-mode #home-view nav .text-indigo-400 { color:#6366f1; }
+    /* Hero badge "AI System Online" */
+    .light-mode #home-view .bg-slate-900 { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #home-view .text-slate-400 { color:#475569; }
+    /* Hero heading */
+    .light-mode #home-view h1 { color:#0f172a; }
+    /* Hero description */
+    .light-mode #home-view p.text-lg { color:#64748b; }
+    /* Register Personnel button */
+    .light-mode #home-view .bg-slate-800 { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #home-view .bg-slate-800:hover { background:#cbd5e1 !important; }
+    .light-mode #home-view .text-slate-200 { color:#1e293b; }
+    /* Stats grid at bottom — target by ID since Tailwind slash classes can't be selected */
+    .light-mode #home-stats-grid { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #home-stats-grid > div { background:#ffffff !important; border-color:#e2e8f0 !important; }
+    .light-mode #home-stats-grid p.text-3xl { color:#0f172a; }
+    .light-mode #home-view .text-slate-500 { color:#64748b; }
+    .light-mode #home-view .border-slate-800 { border-color:#e2e8f0 !important; }
+    /* Home nav bar — target by ID */
+    .light-mode #home-nav { background:rgba(255,255,255,.92) !important; border-color:#e2e8f0 !important; }
+    .light-mode #home-nav span { color:#0f172a; }
+    .light-mode #home-nav .text-indigo-400 { color:#6366f1; }
+    /* Home hero badge */
+    .light-mode #home-view .bg-slate-900 { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #home-view .text-slate-400 { color:#475569; }
+    /* Keep home nav logo icon SVG white */
+    .light-mode #home-nav svg.text-white { color:#ffffff !important; }
+    /* Features section */
+    .light-mode #home-view section h2 { color:#0f172a; }
+    .light-mode #home-view section .glass h3 { color:#0f172a; }
+    .light-mode #home-view section .text-slate-400 { color:#64748b; }
+    /* Footer */
+    .light-mode #home-view footer { border-color:#e2e8f0 !important; color:#94a3b8; }
+
+    /* ── DASHBOARD — Sidebar (kept dark by design for contrast) ── */
+    .light-mode aside { background:#1e293b !important; border-color:#334155 !important; }
+
+    /* ── DASHBOARD — Header ── */
+    .light-mode #dash-view > div > header { background:#ffffff !important; border-color:#e2e8f0 !important; color:#0f172a; }
+    .light-mode #header-title { color:#0f172a !important; }
+    .light-mode #header-sub { color:#94a3b8 !important; }
+    .light-mode #stat-users { color:#0f172a !important; }
+    .light-mode #dash-view .bg-slate-800 { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #dash-view header .bg-slate-800:hover { background:#cbd5e1 !important; }
+    .light-mode #dash-view header .w-px { background:#e2e8f0 !important; }
+
+    /* ── DASHBOARD — Main content area ── */
+    .light-mode #dash-view > div.flex-1 { background:#f8fafc; }
+
+    /* ── LIVE SCANNER TAB ── */
+    .light-mode #panel-live .bg-slate-900 { background:#ffffff !important; border-color:#e2e8f0 !important; }
+    .light-mode #panel-live .bg-slate-800 { background:#f1f5f9 !important; border-color:#cbd5e1 !important; }
+    .light-mode #panel-live .text-slate-600 { color:#94a3b8; }
+    .light-mode #panel-live .text-slate-300 { color:#1e293b; }
+    .light-mode #panel-live .text-slate-500 { color:#64748b; }
+    .light-mode #recent-log .bg-slate-800 { background:#e2e8f0 !important; }
+    .light-mode #recent-log .text-slate-500 { color:#94a3b8; }
+    .light-mode #recent-log .font-semibold { color:#0f172a; }
+    .light-mode #recent-log > div:hover { background:rgba(99,102,241,.06) !important; }
+
+    /* ── RECORDS TAB ── */
+    .light-mode #panel-records .text-slate-500 { color:#64748b; }
+    .light-mode #panel-records .border-slate-700 { border-color:#e2e8f0 !important; }
+    .light-mode #panel-records .divide-slate-800\/60 > tr { border-color:#f1f5f9; }
+    .light-mode #panel-records .text-slate-600 { color:#94a3b8; }
+    .light-mode #panel-records .text-slate-400 { color:#64748b; }
+    .light-mode #panel-records .font-semibold { color:#0f172a; }
+    .light-mode #panel-records tr:hover { background:rgba(99,102,241,.04) !important; }
+
+    /* ── PERSONNEL TAB ── */
+    .light-mode #panel-personnel .text-slate-500 { color:#64748b; }
+    .light-mode #panel-personnel .bg-slate-800 { background:#e2e8f0 !important; border-color:#cbd5e1 !important; }
+    .light-mode #panel-personnel .bg-slate-800:hover { background:#cbd5e1 !important; }
+    .light-mode #panel-personnel .glass { background:#ffffff; border-color:#e2e8f0; }
+    .light-mode #panel-personnel .text-white { color:#0f172a; }
+    .light-mode .personnel-card { background:#ffffff !important; border-color:#e2e8f0 !important; }
+
+    /* ── SETTINGS TAB ── */
+    .light-mode #panel-settings .text-slate-400 { color:#64748b; }
+    .light-mode #panel-settings .text-rose-300 { color:#dc2626; }
+    .light-mode #panel-settings .bg-slate-900 { background:#f8fafc !important; border-color:#e2e8f0 !important; }
+    .light-mode #panel-settings .bg-rose-600\/20 { background:rgba(239,68,68,.08) !important; }
+    .light-mode #panel-settings .bg-rose-600\/20:hover { background:rgba(239,68,68,.15) !important; }
+    .light-mode #panel-settings select.form-input { background:#ffffff; }
+
+    /* ── ENROLL MODAL (light override) ── */
+    .light-mode #enroll-modal > div { background:#ffffff !important; border-color:#e2e8f0 !important; }
+    .light-mode #enroll-modal .border-slate-800 { border-color:#e2e8f0 !important; }
+    .light-mode #enroll-modal .text-slate-500 { color:#64748b; }
+    .light-mode #enroll-modal .bg-slate-800 { background:#e2e8f0 !important; }
+    .light-mode #enroll-modal .text-slate-500 { color:#94a3b8; }
+    .light-mode #enroll-modal h2 { color:#0f172a; }
+
+    /* ── GLOBAL text & divider overrides ── */
+    .light-mode .text-white { color:#0f172a; }
+    .light-mode .text-slate-300 { color:#334155; }
+    .light-mode .text-slate-400 { color:#64748b; }
+    .light-mode .text-slate-500 { color:#94a3b8; }
+    .light-mode .text-slate-600 { color:#94a3b8; }
+    .light-mode .border-slate-800 { border-color:#e2e8f0; }
+    .light-mode .border-slate-700 { border-color:#cbd5e1; }
+    .light-mode .border-slate-800\/60 { border-color:#e2e8f0; }
+    .light-mode .divide-slate-800\/60 > * + * { border-color:#f1f5f9; }
+    .light-mode .bg-slate-800\/40:hover { background:rgba(99,102,241,.06) !important; }
+    /* Keep sidebar text white (inside aside) */
+    .light-mode aside .text-white { color:#ffffff !important; }
+    .light-mode aside .text-slate-500 { color:#64748b !important; }
+    /* Keep btn-primary text white always */
+    .light-mode .btn-primary { color:#ffffff !important; }
+    /* Keep "LIVE · AI ACTIVE" badge text white always */
+    .light-mode #cam-active .text-white { color:#ffffff !important; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- ═══════════ HOME VIEW ═══════════ -->
+<div id="home-view" class="min-h-screen flex flex-col">
+  <nav id="home-nav" class="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-8 h-18 flex items-center justify-between py-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <span class="font-extrabold text-lg tracking-tight">SAS <span class="text-indigo-400">Intelligence</span></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="home-theme-btn" onclick="toggleTheme()" class="theme-toggle dark-btn">
+          <svg id="home-theme-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="home-theme-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <span id="home-theme-label">Light Mode</span>
+        </button>
+        <button onclick="showDash()" class="btn-primary text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-all duration-200">Launch System →</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex-1 flex items-center justify-center px-8 relative overflow-hidden">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-indigo-600/8 blur-[100px] rounded-full"></div>
+    </div>
+    <div class="relative text-center max-w-5xl">
+      <div class="inline-flex items-center gap-2 bg-slate-900 border border-slate-700/50 text-slate-400 px-4 py-1.5 rounded-full text-xs font-semibold mb-8 tracking-wider uppercase">
+        <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
+        AI System Online · CNN + FisherFace Recognition
+      </div>
+      <h1 class="text-6xl md:text-7xl font-black tracking-tight mb-6 leading-tight">
+        Attendance, <br/>
+        <span class="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-300 bg-clip-text text-transparent">Automated.</span>
+      </h1>
+      <p class="text-lg text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed font-medium">
+        Real-time biometric face recognition that instantly identifies students & employees and logs attendance to Excel — no manual entry, no proxy, no hassle.
+      </p>
+      <div class="flex flex-wrap items-center justify-center gap-4 mb-20">
+        <button onclick="showDash()" class="btn-primary text-white font-bold text-sm px-8 py-4 rounded-2xl transition-all duration-200 flex items-center gap-2 shadow-xl shadow-indigo-600/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          Start Attendance Scan
+        </button>
+        <button onclick="showDash(); switchTab('personnel')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm px-8 py-4 rounded-2xl border border-slate-700 transition-all duration-200">
+          Register Personnel
+        </button>
+      </div>
+      <div id="home-stats-grid" class="grid grid-cols-3 gap-px bg-slate-800/50 rounded-3xl overflow-hidden border border-slate-700/40 max-w-2xl mx-auto">
+        <div class="bg-slate-900/80 px-8 py-6 text-center"><p class="text-3xl font-black mb-1">99%</p><p class="text-xs text-slate-500 font-semibold uppercase tracking-widest">Accuracy</p></div>
+        <div class="bg-slate-900/80 px-8 py-6 text-center border-x border-slate-800"><p class="text-3xl font-black mb-1">&lt;1s</p><p class="text-xs text-slate-500 font-semibold uppercase tracking-widest">Recognition</p></div>
+        <div class="bg-slate-900/80 px-8 py-6 text-center"><p class="text-3xl font-black mb-1">Auto</p><p class="text-xs text-slate-500 font-semibold uppercase tracking-widest">Excel Export</p></div>
+      </div>
+    </div>
+  </main>
+
+  <section class="max-w-7xl mx-auto px-8 py-20 w-full">
+    <h2 class="text-3xl font-bold text-center mb-4">Enterprise Features</h2>
+    <p class="text-slate-400 text-center mb-14 max-w-xl mx-auto">Everything you need for a production-grade attendance platform.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="glass rounded-2xl p-8 hover:border-indigo-500/30 transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6"><svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></div>
+        <h3 class="font-bold text-lg mb-2">CNN + FisherFace AI</h3>
+        <p class="text-slate-400 text-sm leading-relaxed">Dual-model recognition with Haar Cascade detection. Handles lighting variation with high accuracy.</p>
+      </div>
+      <div class="glass rounded-2xl p-8 hover:border-indigo-500/30 transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6"><svg class="w-6 h-6 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+        <h3 class="font-bold text-lg mb-2">Live Face Enrollment</h3>
+        <p class="text-slate-400 text-sm leading-relaxed">Register students & employees with a live webcam wizard. Captures 60 face samples automatically.</p>
+      </div>
+      <div class="glass rounded-2xl p-8 hover:border-indigo-500/30 transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-6"><svg class="w-6 h-6 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <h3 class="font-bold text-lg mb-2">Auto Absentee Marking</h3>
+        <p class="text-slate-400 text-sm leading-relaxed">Set a daily cutoff time. The system automatically marks everyone who hasn't checked in as Absent.</p>
+      </div>
+    </div>
+  </section>
+  <footer class="border-t border-slate-800/60 py-8 text-center text-slate-600 text-xs font-semibold tracking-widest uppercase">Smart Attendance System · AI Powered · CNN, FisherFace · Excel Logging</footer>
+</div>
+
+
+<!-- ═══════════ DASHBOARD VIEW ═══════════ -->
+<div id="dash-view" class="hidden min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside class="w-64 flex-shrink-0 bg-slate-950 border-r border-slate-800 flex flex-col sticky top-0 h-screen">
+    <div class="p-6 border-b border-slate-800">
+      <button onclick="showHome()" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center"><svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+        <div class="text-left"><p class="font-bold text-sm text-white">SAS Intelligence</p><p class="text-[10px] text-slate-500 font-medium">Enterprise Suite</p></div>
+      </button>
+    </div>
+    <nav class="flex-1 p-4 space-y-1">
+      <button onclick="switchTab('live')"      id="tab-live"      class="sidebar-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-left transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Live Scanner</button>
+      <button onclick="switchTab('records')"   id="tab-records"   class="sidebar-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-left transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Attendance Records</button>
+      <button onclick="switchTab('personnel')" id="tab-personnel" class="sidebar-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-left transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>Personnel</button>
+      <button onclick="switchTab('settings')"  id="tab-settings"  class="sidebar-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-left transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>Settings</button>
+    </nav>
+    <div class="p-4 border-t border-slate-800">
+      <div class="bg-slate-900 rounded-2xl p-4 border border-slate-800">
+        <p class="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">System Status</p>
+        <div class="flex items-center gap-2">
+          <span id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+          <span id="status-text" class="text-xs font-bold text-slate-400">Camera Off</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="flex-1 flex flex-col overflow-auto">
+    <header class="h-16 border-b border-slate-800 bg-slate-950/70 backdrop-blur-sm flex items-center justify-between px-8 sticky top-0 z-40">
+      <div>
+        <p id="header-title" class="font-bold text-base">Live Recognition Scanner</p>
+        <p id="header-sub" class="text-[11px] text-slate-500 font-medium">Real-time biometric identification</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-6 mr-4">
+          <div class="text-center"><p id="stat-users" class="text-lg font-black text-white">0</p><p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Total</p></div>
+          <div class="w-px h-8 bg-slate-800"></div>
+          <div class="text-center"><p id="stat-present" class="text-lg font-black text-emerald-400">0</p><p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Present</p></div>
+          <div class="w-px h-8 bg-slate-800"></div>
+          <div class="text-center"><p id="stat-absent" class="text-lg font-black text-rose-400">0</p><p class="text-[9px] uppercase tracking-widest text-slate-500 font-bold">Absent</p></div>
+        </div>
+        <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle dark-btn">
+          <svg id="theme-icon-moon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+          <svg id="theme-icon-sun" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <span id="dash-theme-label">Light</span>
+        </button>
+        <button onclick="exportTodayExcel()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Export Excel
+        </button>
+      </div>
+    </header>
+
+    <div class="flex-1 p-8">
+
+      <!-- LIVE SCANNER TAB -->
+      <div id="panel-live" class="tab-panel space-y-8">
+        <div class="relative bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 glow">
+          <div id="cam-placeholder" class="flex flex-col items-center justify-center min-h-[420px] py-16">
+            <div class="w-20 h-20 rounded-3xl bg-slate-800 border-2 border-dashed border-slate-600 flex items-center justify-center mb-6">
+              <svg class="w-10 h-10 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.069A1 1 0 0121 8.87V15.13a1 1 0 01-1.447.9L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+            </div>
+            <p class="text-slate-300 font-bold text-lg mb-2">Recognition Camera Offline</p>
+            <p class="text-slate-500 text-sm mb-8 text-center max-w-xs">Click below to start the AI attendance scan. The camera activates only when you choose.</p>
+            <button onclick="startCamera()" class="btn-primary text-white font-bold px-10 py-4 rounded-2xl transition-all duration-200 flex items-center gap-3 shadow-xl shadow-indigo-600/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+              Start Attendance Scan
+            </button>
+          </div>
+          <div id="cam-active" class="hidden">
+            <img id="video-feed" src="/video_feed" class="w-full max-h-[520px] object-cover" alt="Live Feed" />
+            <div class="absolute top-4 left-4 flex items-center gap-2 bg-slate-950/70 backdrop-blur-sm px-3 py-1.5 rounded-full border border-red-500/30">
+              <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <span class="text-xs font-bold text-white tracking-wide">LIVE · AI ACTIVE</span>
+            </div>
+            <button onclick="stopCamera()" class="absolute top-4 right-4 bg-slate-950/80 hover:bg-red-900/50 border border-slate-700 hover:border-red-500/50 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Stop Scan
+            </button>
+          </div>        </div>
+        <div class="glass rounded-3xl p-6">
+          <h3 class="font-bold text-base mb-5 flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
+            Recent Detections
+          </h3>
+          <div id="recent-log" class="space-y-2 max-h-56 overflow-y-auto">
+            <p class="text-slate-500 italic text-sm py-6 text-center">No detections yet today.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECORDS TAB -->
+      <div id="panel-records" class="tab-panel hidden">
+        <div class="glass rounded-3xl p-8">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div>
+              <h3 class="font-bold text-xl mb-1">Attendance Register</h3>
+              <p id="records-date" class="text-sm text-slate-500 font-medium"></p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Date Picker (styled to be visible in dark & light mode) -->
+              <input id="date-picker" type="date" class="form-input py-2 px-3 text-sm w-44" onchange="loadRecordsForDate(this.value)" />
+              <button onclick="clearTodayAttendance()" id="clear-btn" class="bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 text-sm font-bold px-4 py-2.5 rounded-xl transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Clear
+              </button>
+              <button onclick="downloadExcel()" id="download-btn" class="btn-primary text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Download Excel
+              </button>
+            </div>
+          </div>
+          <table class="w-full text-left">
+            <thead><tr class="text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700">
+              <th class="pb-4 pr-4">#</th><th class="pb-4 pr-4">Name</th><th class="pb-4 pr-4">Time</th><th class="pb-4 pr-4">Status</th><th class="pb-4 text-right">Action</th>
+            </tr></thead>
+            <tbody id="attendance-table" class="divide-y divide-slate-800/60 text-sm">
+              <tr><td colspan="5" class="py-12 text-center text-slate-500 italic">No attendance records for today.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- PERSONNEL TAB -->
+      <div id="panel-personnel" class="tab-panel hidden space-y-6">
+        <!-- Action Bar -->
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xl font-bold">Personnel Registry</h3>
+            <p class="text-sm text-slate-500 mt-0.5">Manage students & employees enrolled in the recognition system</p>
+          </div>
+          <div class="flex gap-3">
+            <button onclick="trainModel()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold px-5 py-3 rounded-xl transition-all">
+              <svg id="train-icon" class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Re-Train Model
+            </button>
+            <button onclick="openEnrollModal()" class="btn-primary text-white text-sm font-bold px-6 py-3 rounded-xl transition-all flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              Enroll New Person
+            </button>
+          </div>
+        </div>
+        <div id="train-msg" class="hidden p-4 rounded-2xl border text-sm font-medium"></div>
+
+        <!-- Personnel Cards -->
+        <div id="personnel-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div class="col-span-full py-20 text-center text-slate-500 italic">No personnel enrolled yet. Click "Enroll New Person" to get started.</div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div id="panel-settings" class="tab-panel hidden space-y-6">
+        <div class="glass rounded-3xl p-8">
+          <h3 class="font-bold text-xl mb-2">Daily Cutoff Time</h3>
+          <p class="text-slate-400 text-sm mb-8">At this time, everyone not checked in is automatically marked <span class="text-rose-400 font-semibold">Absent</span>.</p>
+          <div class="flex flex-wrap items-end gap-6">
+            <div>
+              <label class="form-label">Hour</label>
+              <select id="cutoff-hour" class="form-input w-36">
+                <script>for(let i=0;i<24;i++){document.write(`<option value="${i}"${i===9?' selected':''}>${String(i).padStart(2,'0')}:00</option>`)}</script>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Minute</label>
+              <select id="cutoff-min" class="form-input w-28">
+                <option value="0" selected>00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+              </select>
+            </div>
+            <button onclick="saveCutoff()" class="btn-primary text-white text-sm font-bold px-8 py-3 rounded-xl transition-all">Save Cutoff</button>
+          </div>
+        </div>
+        <div class="glass rounded-3xl p-8">
+          <h3 class="font-bold text-xl mb-2">Manual Actions</h3>
+          <p class="text-slate-400 text-sm mb-8">Trigger attendance actions immediately without waiting for the schedule.</p>
+          <button onclick="markAbsent()" class="bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 font-bold text-sm px-8 py-3 rounded-xl transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Mark Everyone Else Absent Now
+          </button>
+          <div id="settings-msg" class="hidden mt-6 p-4 bg-slate-900 rounded-2xl border border-slate-800 text-sm font-medium"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════ ENROLL MODAL ═══════════ -->
+<div id="enroll-modal" class="enroll-overlay">
+  <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl mx-4 overflow-hidden shadow-2xl">
+    <!-- Modal Header -->
+    <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+      <div>
+        <h2 class="font-bold text-xl">Enroll New Person</h2>
+        <p class="text-slate-500 text-sm mt-0.5">Fill in details, then capture face samples via webcam</p>
+      </div>
+      <button onclick="closeEnrollModal()" class="text-slate-500 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Step indicator -->
+    <div class="flex items-center px-6 pt-5 pb-1 gap-3">
+      <div id="step-1-dot" class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-black text-white">1</div>
+        <span class="text-xs font-semibold text-indigo-400">Details</span>
+      </div>
+      <div class="flex-1 h-px bg-slate-800"></div>
+      <div id="step-2-dot" class="flex items-center gap-2">
+        <div id="step-2-num" class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-500">2</div>
+        <span id="step-2-lbl" class="text-xs font-semibold text-slate-500">Capture</span>
+      </div>
+      <div class="flex-1 h-px bg-slate-800"></div>
+      <div id="step-3-dot" class="flex items-center gap-2">
+        <div id="step-3-num" class="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-500">3</div>
+        <span id="step-3-lbl" class="text-xs font-semibold text-slate-500">Done</span>
+      </div>
+    </div>
+
+    <div class="p-6">
+
+      <!-- STEP 1: Details Form -->
+      <div id="enroll-step-1">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="form-label">Full Name *</label>
+            <input id="enroll-name" type="text" placeholder="e.g. Chandru Kumar" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">ID / Roll Number *</label>
+            <input id="enroll-pid" type="text" placeholder="e.g. EMP001 / 21CS01" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Department / Class</label>
+            <input id="enroll-dept" type="text" placeholder="e.g. Computer Science / IV-A" class="form-input" />
+          </div>
+          <div>
+            <label class="form-label">Role / Year</label>
+            <input id="enroll-role" type="text" placeholder="e.g. Student / Employee" class="form-input" />
+          </div>
+          <div class="col-span-2">
+            <label class="form-label">Email (Optional)</label>
+            <input id="enroll-email" type="email" placeholder="e.g. chandru@college.edu" class="form-input" />
+          </div>
+        </div>
+        <div id="enroll-form-err" class="hidden text-rose-400 text-sm font-semibold bg-rose-500/10 border border-rose-500/20 p-3 rounded-xl mb-4"></div>
+        <button onclick="startEnrollCapture()" class="btn-primary text-white font-bold w-full py-3 rounded-xl transition-all mt-2">
+          Continue to Face Capture →
+        </button>
+      </div>
+
+      <!-- STEP 2: Camera Capture -->
+      <div id="enroll-step-2" class="hidden text-center">
+        <div class="relative bg-black rounded-2xl overflow-hidden mb-5 border border-slate-800" style="height:260px">
+          <img id="enroll-feed" src="" class="w-full h-full object-cover" alt="Enrollment Feed" />
+          <div class="absolute top-3 left-3 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide flex items-center gap-1.5">
+            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4"/></svg>
+            Capturing Faces
+          </div>
+          <!-- Multi-face warning overlay -->
+          <div id="multi-face-warn" class="hidden absolute inset-0 bg-red-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-2xl">
+            <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <p class="text-red-300 font-bold text-sm">Multiple faces detected!</p>
+            <p class="text-red-400 text-xs">Please ensure only ONE person is in the camera frame</p>
+          </div>
+        </div>
+        <!-- Progress -->
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2 text-xs font-bold">
+            <span class="text-slate-400">Face samples captured</span>
+            <span id="prog-count" class="text-indigo-400">0 / 60</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2.5">
+            <div id="prog-bar" class="bg-gradient-to-r from-indigo-500 to-violet-500 h-2.5 rounded-full" style="width:0%"></div>
+          </div>
+          <p class="text-slate-500 text-xs mt-2">Look directly into the camera and move your head slightly for better coverage</p>
+        </div>
+        <button id="cancel-btn" onclick="cancelEnroll()" class="bg-rose-600/20 hover:bg-rose-600 border border-rose-500/40 hover:border-rose-500 text-rose-300 hover:text-white text-sm font-bold px-8 py-3 rounded-xl transition-all flex items-center gap-2 mx-auto">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          Cancel Enrollment
+        </button>
+      </div>
+
+      <!-- STEP 3: Done -->
+      <div id="enroll-step-3" class="hidden text-center py-8">
+        <div class="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-emerald-500/30">
+          <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3 class="text-2xl font-black mb-2 text-white">Enrollment Complete!</h3>
+        <p id="enroll-done-name" class="text-indigo-400 font-bold text-lg mb-2"></p>
+        <p class="text-slate-500 text-sm mb-8">Face data captured successfully. Click "Re-Train Model" on the Personnel page to activate this person in the AI recognition system.</p>
+        <div class="flex gap-3 justify-center">
+          <button onclick="enrollAnother()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm font-bold px-6 py-3 rounded-xl transition-all">
+            Enroll Another
+          </button>
+          <button onclick="closeEnrollModal()" class="btn-primary text-white text-sm font-bold px-8 py-3 rounded-xl transition-all">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .enroll-overlay{display:none;position:fixed;inset:0;background:rgba(2,6,23,.85);backdrop-filter:blur(8px);z-index:1000;align-items:center;justify-content:center}
+  .enroll-overlay.show{display:flex}
+</style>
+
+<script>
+const API = '';
+let enrollPollInterval = null;
+let currentRecordsDate = new Date().toISOString().split('T')[0];
+let _statTimer = null;
+let _liveTimer = null;
+
+/* ── Bootstrap: read URL hash on load ────────────────────────── */
+const VALID_TABS = ['live','records','personnel','settings'];
+window.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash.replace('#','');
+  if (VALID_TABS.includes(hash)) {
+    // Go straight to dashboard at the right tab
+    _enterDash();
+    _applyTab(hash);
+  }
+  // else stay on home page
+});
+
+/* ── View Switching ──────────────────────────────────────────── */
+function showDash() {
+  _enterDash();
+  const hash = window.location.hash.replace('#','');
+  _applyTab(VALID_TABS.includes(hash) ? hash : 'live');
+}
+function _enterDash() {
+  document.getElementById('home-view').style.display = 'none';
+  document.getElementById('dash-view').style.display = 'flex';
+  refreshStats();
+  if (!_statTimer) _statTimer = setInterval(refreshStats, 5000);
+}
+function showHome() {
+  stopCamera();
+  if (_statTimer) { clearInterval(_statTimer); _statTimer = null; }
+  if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+  document.getElementById('dash-view').style.display = 'none';
+  document.getElementById('home-view').style.display = 'flex';
+  window.location.hash = '';
+}
+
+/* ── Tab Switching ───────────────────────────────────────────── */
+function switchTab(name) {
+  _applyTab(name);
+  window.location.hash = name;   // update URL → survives refresh
+}
+function _applyTab(name) {
+  if (!VALID_TABS.includes(name)) name = 'live';
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.remove('hidden');
+  document.getElementById('tab-'   + name).classList.add('active');
+  const titles = {
+    live:      ['Live Recognition Scanner', 'Real-time biometric identification'],
+    records:   ['Attendance Records',       'Browse & export by date'],
+    personnel: ['Personnel Registry',       'Enrolled students & employees'],
+    settings:  ['System Settings',         'Configure operational parameters']
+  };
+  document.getElementById('header-title').textContent = titles[name][0];
+  document.getElementById('header-sub').textContent   = titles[name][1];
+  // Tab-specific init
+  if (name === 'personnel') refreshPersonnel();
+  if (name === 'records')   initRecordsTab();
+  // Live tab: keep Recent Detections up to date
+  if (_liveTimer) { clearInterval(_liveTimer); _liveTimer = null; }
+  if (name === 'live') {
+    _refreshLiveFeed();
+    _liveTimer = setInterval(_refreshLiveFeed, 3000);
+  }
+}
+
+/* ── Camera ─────────────────── */
+function startCamera(){
+  fetch(`${API}/api/stream/start`,{method:'POST'});
+  document.getElementById('cam-placeholder').classList.add('hidden');
+  document.getElementById('cam-active').classList.remove('hidden');
+  document.getElementById('status-dot').className='w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+  document.getElementById('status-text').textContent='Live — Scanning';
+  document.getElementById('status-text').className='text-xs font-bold text-emerald-400';
+}
+function stopCamera(){
+  fetch(`${API}/api/stream/stop`,{method:'POST'});
+  document.getElementById('cam-placeholder').classList.remove('hidden');
+  document.getElementById('cam-active').classList.add('hidden');
+  document.getElementById('status-dot').className='w-2 h-2 rounded-full bg-slate-600';
+  document.getElementById('status-text').textContent='Camera Off';
+  document.getElementById('status-text').className='text-xs font-bold text-slate-400';
+}
+
+/* ── Data Refresh ────────────── */
+async function refreshStats(){
+  try{
+    const r=await fetch(`${API}/api/stats`); const d=await r.json();
+    document.getElementById('stat-users').textContent=d.total_users;
+    document.getElementById('stat-present').textContent=d.present;
+    document.getElementById('stat-absent').textContent=d.absent;
+  }catch(e){}
+}
+async function _refreshLiveFeed(){
+  try{
+    const r=await fetch(`${API}/api/attendance`); const rows=await r.json();
+    const rl=document.getElementById('recent-log');
+    if(!rl) return;
+    const today=new Date().toISOString().split('T')[0];
+    rl.innerHTML=rows.length===0?'<p class="text-slate-500 italic text-sm py-6 text-center">No detections yet today.</p>':rows.slice(0,8).map(r=>`
+      <div class="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-slate-800/40 transition-all">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold text-indigo-400">${r.name[0]}</div>
+          <span class="font-semibold text-sm">${r.name}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-500 font-mono">${r.time}</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${r.status==='Present'?'badge-present':'badge-absent'}">${r.status}</span>
+        </div>
+      </div>`).join('');
+  }catch(e){}
+}
+/* ── Theme Toggle ──────────────────────────────────────────── */
+let _isDark = localStorage.getItem('sas-theme') !== 'light';
+
+function _applyThemeUI() {
+  document.body.classList.toggle('light-mode', !_isDark);
+  const moon  = v => document.getElementById(v)?.classList.toggle('hidden', !_isDark);
+  const sun   = v => document.getElementById(v)?.classList.toggle('hidden',  _isDark);
+  moon('theme-icon-moon'); moon('home-theme-moon');
+  sun ('theme-icon-sun');  sun ('home-theme-sun');
+  // Labels
+  const lbl = _isDark ? 'Light' : 'Dark';
+  ['dash-theme-label','home-theme-label'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.textContent = (id.includes('home') ? lbl+' Mode' : lbl);
+  });
+  // Button class
+  ['theme-btn','home-theme-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.toggle('dark-btn',  _isDark);
+    el.classList.toggle('light-btn', !_isDark);
+  });
+}
+function toggleTheme(){
+  _isDark = !_isDark;
+  localStorage.setItem('sas-theme', _isDark ? 'dark' : 'light');
+  _applyThemeUI();
+}
+// Apply on page load
+_applyThemeUI();
+
+/* ── Excel Download Helpers ────────────────────────────────── */
+function exportTodayExcel(){
+  const today = new Date().toISOString().split('T')[0];
+  _triggerDownload(`/api/export/${today}`);
+}
+async function downloadExcel(){
+  const date = currentRecordsDate || new Date().toISOString().split('T')[0];
+  const btn = document.getElementById('download-btn');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Generating...';
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/api/export/${date}`);
+    if(r.ok){
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = `attendance_${date}.xlsx`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } else {
+      alert(`No attendance records found for ${date}.\nPlease pick a date that has records.`);
+    }
+  } catch(e){ alert('Download failed. Please try again.'); }
+  btn.innerHTML = orig; btn.disabled = false;
+}
+function _triggerDownload(url){
+  const a = document.createElement('a'); a.href = url;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ── Date Label Helper ─────────────────────────────────────── */
+function _smartDateLabel(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  const d = new Date(dateStr+'T00:00:00');
+  const full = d.toLocaleDateString('en-GB',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  if(d.getTime() === today.getTime())     return `Today — ${full}`;
+  if(d.getTime() === yesterday.getTime()) return `Yesterday — ${full}`;
+  return full;
+}
+function _isSunday(dateStr){ return new Date(dateStr+'T00:00:00').getDay() === 0; }
+
+async function initRecordsTab(){
+  const today=new Date().toISOString().split('T')[0];
+  currentRecordsDate=today;
+  const picker=document.getElementById('date-picker');
+  picker.value=today;
+  picker.max=today;
+  await loadRecordsForDate(today);
+}
+async function loadRecordsForDate(date){
+  // Block Sundays
+  if(_isSunday(date)){
+    alert('Sundays are holidays — no attendance records.');
+    // Reset picker back to previous valid selection
+    const picker=document.getElementById('date-picker');
+    if(picker) picker.value = currentRecordsDate || new Date().toISOString().split('T')[0];
+    return;
+  }
+  currentRecordsDate=date;
+  document.getElementById('records-date').textContent = _smartDateLabel(date);
+  // Show/hide Clear button (only for today)
+  const today=new Date().toISOString().split('T')[0];
+  const clearBtn=document.getElementById('clear-btn');
+  if(clearBtn) clearBtn.style.display=(date===today)?'flex':'none';
+  try{
+    const r=await fetch(`${API}/api/attendance?date=${date}`); const rows=await r.json();
+    renderAttendanceTable(rows, date);
+  }catch(e){}
+}
+async function refreshRecords(){
+  if(currentRecordsDate) await loadRecordsForDate(currentRecordsDate);
+}
+function renderAttendanceTable(rows, date){
+  const rl=document.getElementById('recent-log');
+  if(rl) rl.innerHTML=rows.length===0?'<p class="text-slate-500 italic text-sm py-6 text-center">No detections yet today.</p>':rows.slice(0,8).map(r=>`
+    <div class="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-slate-800/40 transition-all">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-sm font-bold text-indigo-400">${r.name[0]}</div>
+        <span class="font-semibold text-sm">${r.name}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-500 font-mono">${r.time}</span>
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${r.status==='Present'?'badge-present':'badge-absent'}">${r.status}</span>
+      </div>
+    </div>`).join('');
+  const tb=document.getElementById('attendance-table');
+  tb.innerHTML=rows.length===0?'<tr><td colspan="5" class="py-12 text-center text-slate-500 italic">No records found for this date.</td></tr>':rows.map((r,i)=>`
+    <tr class="hover:bg-slate-800/20 transition-all group">
+      <td class="py-4 pr-4 text-slate-600 font-mono text-xs">${String(i+1).padStart(2,'0')}</td>
+      <td class="py-4 pr-4 font-semibold">${r.name}</td>
+      <td class="py-4 pr-4 font-mono text-slate-400 text-sm">${r.time}</td>
+      <td class="py-4 pr-4"><span class="text-[10px] font-bold px-3 py-1 rounded-lg ${r.status==='Present'?'badge-present':'badge-absent'}">${r.status.toUpperCase()}</span></td>
+      <td class="py-4 text-right">
+        <button onclick="deleteRecord('${r.name}','${date}')" title="Delete" class="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </td>
+    </tr>`).join('');
+}
+async function refreshPersonnel(){
+  try{
+    const r=await fetch(`${API}/api/users`); const users=await r.json();
+    const grid=document.getElementById('personnel-grid');
+    if(!users.length){
+      grid.innerHTML='<div class="col-span-full py-20 text-center text-slate-500 italic">No personnel enrolled yet. Click "Enroll New Person" to get started.</div>';
+      return;
+    }
+    grid.innerHTML=users.map(u=>`
+      <div class="glass rounded-2xl p-6 hover:border-indigo-500/30 transition-all group flex gap-4 items-start">
+        <div class="w-14 h-14 flex-shrink-0 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-2xl font-black text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+          ${u.name[0].toUpperCase()}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold truncate">${u.name}</p>
+          <p class="text-[11px] text-slate-500 font-mono mt-0.5">${u.pid}</p>
+          <div class="flex flex-wrap gap-2 mt-3">
+            ${u.department!=='—'?`<span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-semibold">${u.department}</span>`:''}
+            ${u.role!=='—'?`<span class="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-semibold border border-indigo-500/20">${u.role}</span>`:''}
+          </div>
+        </div>
+        <button onclick="deletePerson('${u.name}')" title="Remove" class="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-rose-400 p-1 rounded-lg hover:bg-rose-500/10">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>`).join('');
+  }catch(e){}
+}
+
+/* ── Actions ─────────────────── */
+async function trainModel(){
+  const icon=document.getElementById('train-icon');
+  icon.classList.add('animate-spin');
+  const msg=document.getElementById('train-msg');
+  msg.className='p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-300 text-sm font-medium';
+  msg.textContent='Training AI model…';
+  msg.classList.remove('hidden');
+  try{
+    const r=await fetch(`${API}/api/train`,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const d=await r.json();
+    msg.textContent=d.message;
+    msg.className=d.success?'p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-300 text-sm font-medium':'p-4 bg-rose-500/10 rounded-2xl border border-rose-500/20 text-rose-300 text-sm font-medium';
+  }catch(e){msg.textContent='Failed to reach server.';msg.className='p-4 bg-rose-500/10 rounded-2xl border border-rose-500/20 text-rose-300 text-sm font-medium';}
+  icon.classList.remove('animate-spin');
+}
+async function saveCutoff(){
+  const hour=parseInt(document.getElementById('cutoff-hour').value);
+  const minute=parseInt(document.getElementById('cutoff-min').value);
+  await fetch(`${API}/api/cutoff`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hour,minute})});
+  const msg=document.getElementById('settings-msg');
+  msg.className='mt-6 p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-300 text-sm font-medium';
+  msg.textContent=`Cutoff set to ${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')} daily.`;
+  msg.classList.remove('hidden');
+}
+async function markAbsent(){
+  if(!confirm('Mark ALL unregistered personnel as Absent for today?')) return;
+  const r=await fetch(`${API}/api/mark-absent`,{method:'POST'});
+  const d=await r.json();
+  const msg=document.getElementById('settings-msg');
+  msg.className='mt-6 p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-300 text-sm font-medium';
+  msg.textContent=d.message; msg.classList.remove('hidden');
+  refreshStats(); refreshRecords();
+}
+async function deletePerson(name){
+  if(!confirm(`Remove ${name} from the system? This cannot be undone.`)) return;
+  await fetch(`${API}/api/personnel/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  refreshPersonnel(); refreshStats();
+}
+async function deleteRecord(name, date){
+  if(!confirm(`Delete attendance record for "${name}" on ${date}?`)) return;
+  await fetch(`${API}/api/attendance/delete`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,date})});
+  refreshRecords(); refreshStats();
+}
+async function clearTodayAttendance(){
+  if(!confirm('Clear ALL attendance records for today? This cannot be undone.')) return;
+  const r=await fetch(`${API}/api/attendance/clear-today`,{method:'POST'});
+  const d=await r.json();
+  refreshRecords(); refreshStats();
+}
+
+/* ── Enrollment Modal ────────── */
+function openEnrollModal(){
+  resetEnrollModal();
+  document.getElementById('enroll-modal').classList.add('show');
+}
+function closeEnrollModal(){
+  // Only cancel (and delete partial data) if we're still capturing (Step 2)
+  const step2Visible = !document.getElementById('enroll-step-2').classList.contains('hidden');
+  if(step2Visible){
+    cancelEnroll(); // this deletes partial data
+  } else {
+    // Step 1 or Step 3 — just stop any stray poll and close cleanly
+    if(enrollPollInterval){ clearInterval(enrollPollInterval); enrollPollInterval=null; }
+    document.getElementById('enroll-feed').src='';
+  }
+  document.getElementById('enroll-modal').classList.remove('show');
+  refreshPersonnel();
+}
+function enrollAnother(){
+  // Keep the data already saved — just reset the form for a new person
+  if(enrollPollInterval){ clearInterval(enrollPollInterval); enrollPollInterval=null; }
+  document.getElementById('enroll-feed').src='';
+  resetEnrollModal();
+}
+function resetEnrollModal(){
+  ['enroll-name','enroll-pid','enroll-dept','enroll-role','enroll-email'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('enroll-form-err').classList.add('hidden');
+  document.getElementById('enroll-step-1').classList.remove('hidden');
+  document.getElementById('enroll-step-2').classList.add('hidden');
+  document.getElementById('enroll-step-3').classList.add('hidden');
+  setStepStyle(1);
+}
+function setStepStyle(active){
+  [1,2,3].forEach(n=>{
+    const num=document.getElementById('step-'+n+'-num');
+    const lbl=document.getElementById('step-'+n+'-lbl');
+    if(!num||!lbl) return;
+    if(n<=active){num.className='w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[11px] font-black text-white';lbl.className='text-xs font-semibold text-indigo-400';}
+    else{num.className='w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black text-slate-500';lbl.className='text-xs font-semibold text-slate-500';}
+  });
+}
+async function startEnrollCapture(){
+  const name=document.getElementById('enroll-name').value.trim();
+  const pid=document.getElementById('enroll-pid').value.trim();
+  const dept=document.getElementById('enroll-dept').value.trim();
+  const role=document.getElementById('enroll-role').value.trim();
+  const email=document.getElementById('enroll-email').value.trim();
+  const errBox=document.getElementById('enroll-form-err');
+  if(!name||!pid){errBox.textContent='Full Name and ID are required.';errBox.classList.remove('hidden');return;}
+  errBox.classList.add('hidden');
+
+  const res=await fetch(`${API}/api/enroll/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,pid,department:dept,role,email})});
+  const d=await res.json();
+  if(!d.success){errBox.textContent=d.message;errBox.classList.remove('hidden');return;}
+
+  // Move to step 2
+  document.getElementById('enroll-step-1').classList.add('hidden');
+  document.getElementById('enroll-step-2').classList.remove('hidden');
+  document.getElementById('enroll-feed').src='/enroll_feed?ts='+Date.now();
+  setStepStyle(2);
+
+  // Poll for progress
+  enrollPollInterval=setInterval(async()=>{
+    try{
+      const sr=await fetch(`${API}/api/enroll/status`);
+      const sd=await sr.json();
+      const pct=Math.min(100,Math.round(sd.captured/sd.target*100));
+      document.getElementById('prog-bar').style.width=pct+'%';
+      document.getElementById('prog-count').textContent=`${sd.captured} / ${sd.target}`;
+
+      // Show / hide multi-face warning
+      const warn=document.getElementById('multi-face-warn');
+      if(sd.multi_face_warn){ warn.classList.remove('hidden'); }
+      else { warn.classList.add('hidden'); }
+
+      if(!sd.active && sd.captured>0){
+        clearInterval(enrollPollInterval); enrollPollInterval=null;
+        showEnrollDone(name);
+      } else if(!sd.active && sd.captured===0){
+        // Stopped with nothing captured (error case)
+        clearInterval(enrollPollInterval); enrollPollInterval=null;
+        resetEnrollModal();
+      }
+    }catch(e){}
+  },500);
+}
+function showEnrollDone(name){
+  document.getElementById('enroll-step-2').classList.add('hidden');
+  document.getElementById('enroll-step-3').classList.remove('hidden');
+  document.getElementById('enroll-done-name').textContent=name;
+  document.getElementById('enroll-feed').src='';
+  setStepStyle(3);
+}
+function cancelEnroll(){
+  // 1. Immediately stop the polling interval
+  if(enrollPollInterval){ clearInterval(enrollPollInterval); enrollPollInterval=null; }
+  // 2. Disable the cancel button to prevent double-click
+  const btn=document.getElementById('cancel-btn');
+  if(btn){ btn.disabled=true; btn.textContent='Cancelling...'; }
+  // 3. Tell the backend to stop + DELETE partial data
+  fetch(`${API}/api/enroll/stop`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({delete_partial:true})})
+    .catch(()=>{})
+    .finally(()=>{
+      // 4. Kill the enroll feed
+      document.getElementById('enroll-feed').src='';
+      // 5. Reset the entire modal back to Step 1
+      resetEnrollModal();
+    });
+}
+</script>
+
+</body>
+</html>
