@@ -25,38 +25,39 @@ An enterprise-grade, real-time face recognition attendance platform built with P
 | Task Scheduler | APScheduler (Background job for daily cutoff) |
 
 ## Project Structure
-```text
+```
 Smart-Attendance-System/
-│
-├── app.py                         # Main Flask server — routing, streaming, endpoints
-│
-├── engine/                        # AI Recognition Architecture
-│   ├── detector.py                # Haar Cascade face detection
-│   ├── recognizer.py              # FisherFace + LBPH recognition logic
-│   └── trainer.py                 # Model training from face samples
-│
-├── core/                          # Business Logic
-│   ├── storage.py                 # SQLite manager & data querying
-│   └── scheduler.py               # Background daily absentee scheduler
-│
-├── templates/
-│   └── index.html                 # Full dashboard (Single Page UI, responsive, theming)
-│
-├── datasets/                      # Face image samples
-│   └── <PersonName>/              # 60 grayscale face images per person
-│
-├── haarcascade_frontalface_default.xml  # OpenCV Haar Cascade model
-├── history.db                     # Primary SQLite attendance database
-├── personnel_meta.json            # Enrolled personnel metadata (ID, dept, role)
-├── fisher_model.yml               # Trained FisherFace model (created after training)
-└── names.pkl                      # Name-to-ID mapping dictionary
+|
+|-- app.py                              # Main Flask server
+|
+|-- engine/                             # AI Recognition Architecture
+|   |-- detector.py                     # Haar Cascade face detection
+|   |-- recognizer.py                   # FisherFace + LBPH recognition
+|   +-- trainer.py                      # Model training from face samples
+|
+|-- core/                               # Business Logic
+|   |-- storage.py                      # SQLite manager & data querying
+|   +-- scheduler.py                    # Background daily absentee scheduler
+|
+|-- templates/
+|   +-- index.html                      # Full dashboard (SPA, responsive, theming)
+|
+|-- datasets/                           # Face image samples (auto-created)
+|   +-- <PersonName>/                   # 60 grayscale images per person
+|
+|-- haarcascade_frontalface_default.xml  # OpenCV Haar Cascade model
+|-- history.db                          # Primary SQLite attendance database
+|-- personnel_meta.json                 # Enrolled personnel metadata
+|-- fisher_model.yml                    # Trained FisherFace model
+|-- names.pkl                           # Name-to-ID mapping dictionary
++-- requirements.txt                    # Python dependencies
 ```
 
 ## Getting Started
 
 ### 1. Install Dependencies
 ```bash
-pip install flask flask-cors opencv-contrib-python pandas openpyxl apscheduler
+pip install -r requirements.txt
 ```
 
 ### 2. Run the Server
